@@ -5,7 +5,7 @@ let usage =
    a reference, so an accidental layout shift never goes unnoticed.\n\n\
    Commands:\n\
    \  --check            (default) render and compare against the snapshot\n\
-   \                     directory. Exit code 1 if any page differs.\n\
+   \                     directory.\n\
    \  --git-check [REF]  render REF (or config 'git-base') in a detached git\n\
    \                     worktree as the reference and compare it against the\n\
    \                     current tree. Does not use the snapshot directory.\n\
@@ -16,6 +16,9 @@ let usage =
    \  --doc PATH         override the 'document' config value\n\
    \  --snapshot DIR     override the 'snapshot' config value\n\
    \  -h, --help         show this help\n\n\
+   Exit codes: 0 unchanged; 1 pages changed (soft drift); 3 a hard layout\n\
+   violation (page count or a critical page shifted); 2 a usage or runtime\n\
+   error.\n\n\
    Configuration is read from plint.toml; see plint.toml.example.\n"
 
 let die code msg =
@@ -344,21 +347,25 @@ let report cfg ~reference ~current =
       else if i >= n_ref then Printf.printf "Page %d added\n" page
       else Printf.printf "Page %d removed\n" page)
     changed;
-  if n_cur <> n_ref then
+  let count_changed = n_cur <> n_ref in
+  if count_changed then
     Printf.printf "ERROR: page count changed: was %d, now %d\n" n_ref n_cur;
+  let critical_changed =
+    List.filter (fun p -> List.mem p changed) cfg.critical_pages
+  in
   List.iter
     (fun p ->
-      if List.mem p changed then
-        Printf.printf
-          "ERROR: critical page %d changed; frozen layout shifted\n" p)
-    cfg.critical_pages;
+      Printf.printf "ERROR: critical page %d changed; frozen layout shifted\n" p)
+    critical_changed;
   if changed = [] then (
     Printf.printf "plint: layout unchanged (%d pages)\n" n_cur;
     0)
   else (
     Printf.printf "changed pages: %s\n"
       (String.concat ", " (List.map string_of_int changed));
-    1)
+    (* exit 3 marks a hard layout violation (page count or a critical page
+       shifted) so CI can gate on it; ordinary drift stays exit 1 *)
+    if count_changed || critical_changed <> [] then 3 else 1)
 
 (* --- snapshot ----------------------------------------------------------- *)
 

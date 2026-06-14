@@ -76,9 +76,18 @@ plint --watch            # re-run --check whenever a watched file changes
 
 Options: `--config PATH`, `--doc PATH`, `--snapshot DIR`, `-h`/`--help`.
 
-`--check` exits non-zero if any page differs and prints the changed page numbers
-with the first diverging line of each. A change in page count, or in any page
-listed in `critical-pages`, is flagged as an `ERROR`.
+`--check` and `--git-check` print the changed page numbers with the first
+diverging line of each. Exit codes:
+
+| Code | Meaning |
+|------|---------|
+| 0 | no page changed |
+| 1 | pages changed (soft drift) |
+| 3 | a hard layout violation: page count changed, or a `critical-pages` page shifted |
+| 2 | usage or runtime error |
+
+This lets CI gate on hard violations only (`code -ge 2`) while tolerating
+ordinary, expected content drift.
 
 ## CI usage
 
