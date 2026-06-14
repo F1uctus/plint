@@ -1,0 +1,17 @@
+# Dune / OCaml build artifacts
+_build/
+*.install
+*.merlin
+.merlin
+*.coverage
+
+# opam local switch
+_opam/
+
+# Editor / OS noise
+*~
+.DS_Store
+
+# Per-project reference data: a snapshot belongs to the document being linted,
+# not to the tool itself.
+snapshot/

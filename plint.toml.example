@@ -1,0 +1,43 @@
+# plint.toml — configuration for plint, a per-page PDF layout linter.
+#
+# plint resolves this file by, in order: an explicit --config PATH, the nearest
+# ancestor directory containing plint.toml, or a single plint.toml one directory
+# level below the current directory. Place it at (or just under) your project
+# root so plint runs from anywhere in the tree.
+
+# Project root, relative to this file. plint changes into it before rendering,
+# so all paths below and inside the render command resolve from here.
+root = "."
+
+# Main source file to render, relative to root. (required)
+document = "doc.typ"
+
+# Render command. (required) Executed with `sh -c`, so environment prefixes and
+# compound commands work. plint substitutes three placeholders, shell-quoted:
+#   {doc}   the document path to render
+#   {out}   the PDF path plint expects to be produced
+#   {root}  the project root (for renderers that take one, e.g. typst)
+# The only contract is that the command writes a PDF to {out}.
+#
+# typst example:
+render = "typst compile {doc} {out} --root {root}"
+#
+# LaTeX example (latexmk names its output after the job, then copies it):
+# render = "latexmk -pdf -interaction=nonstopmode -jobname=plint {doc} && cp plint.pdf {out}"
+
+# Reference snapshot directory (page-NNN.txt files), relative to root.
+snapshot = "snapshot"
+
+# --watch settings. watch-dirs are relative to root; watch-exts empty means all
+# files; watch-exclude lists directory basenames to skip while walking.
+watch-dirs    = ["."]
+watch-exts    = []
+watch-exclude = []
+
+# Pages whose change is reported as a hard error (e.g. a table of contents whose
+# shift must never happen). Optional; empty by default.
+critical-pages = []
+
+# Default base commit/ref for --git-check (the commit the reference is built
+# from, e.g. the printed commit). Optional.
+# git-base = "v1.0"

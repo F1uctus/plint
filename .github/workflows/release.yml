@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5'
+
+      - name: Build
+        run: opam exec -- dune build --profile release
+
+      - name: Stage binary
+        run: |
+          cp _build/default/bin/plint.exe plint-linux-x86_64
+          chmod +x plint-linux-x86_64
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: plint-linux-x86_64
+          generate_release_notes: true
