@@ -139,6 +139,9 @@ type config = {
   watch_exclude : string list;     (* directory basenames *)
   critical_pages : int list;
   git_base : string option;
+  fold_math : bool;                (* fold math-alphanumeric to base letters *)
+  ignore_ws : bool;                (* drop spaces and tabs before comparing *)
+  rules : (string * string) list;  (* literal [from -> to] substitutions *)
 }
 
 type vnode = VStr of string | VArr of string list
@@ -200,6 +203,41 @@ let get_arr tbl k =
   | Some (VStr s) when s <> "" -> Some [ s ]
   | _ -> None
 
+let get_bool tbl k =
+  match get_str tbl k with Some "true" -> true | _ -> false
+
+(* First index of [sub] in [s], or None. *)
+let index_sub s sub =
+  let n = String.length s and m = String.length sub in
+  let rec go i =
+    if i + m > n then None
+    else if String.sub s i m = sub then Some i
+    else go (i + 1)
+  in
+  if m = 0 then None else go 0
+
+let drop_trailing_space s =
+  let n = String.length s in
+  if n > 0 && s.[n - 1] = ' ' then String.sub s 0 (n - 1) else s
+
+let drop_leading_space s =
+  let n = String.length s in
+  if n > 0 && s.[0] = ' ' then String.sub s 1 (n - 1) else s
+
+(* A `from => to` substitution rule: split on the first `=>` and trim a single
+   space adjacent to the delimiter on each side. Entries without `=>` are
+   dropped. *)
+let parse_rule entry =
+  match index_sub entry "=>" with
+  | None -> None
+  | Some i ->
+      let from = drop_trailing_space (String.sub entry 0 i) in
+      let by =
+        drop_leading_space
+          (String.sub entry (i + 2) (String.length entry - i - 2))
+      in
+      Some (from, by)
+
 let load_config config_path =
   let config_dir = Filename.dirname config_path in
   let tbl = read_config_file config_path in
@@ -231,6 +269,12 @@ let load_config config_path =
       | Some l -> List.filter_map int_of_string_opt l
       | None -> []);
     git_base = get_str tbl "git-base";
+    fold_math = get_bool tbl "fold-math";
+    ignore_ws = get_bool tbl "ignore-whitespace";
+    rules =
+      (match get_arr tbl "normalize" with
+      | Some l -> List.filter_map parse_rule l
+      | None -> []);
   }
 
 (* plint.toml: explicit --config, else nearest ancestor, else a single match
@@ -323,14 +367,26 @@ let first_diff_line a b =
   in
   go 1 la lb
 
+(* The 1-based [ln]th line of [s], or "" if out of range. *)
+let nth_line s ln =
+  match List.nth_opt (String.split_on_char '\n' s) (ln - 1) with
+  | Some l -> l
+  | None -> ""
+
 let report cfg ~reference ~current =
+  (* Normalization folds below-threshold typographic differences away before
+     comparing; it preserves line count, so the raw line at a normalized
+     diverging index is shown to the reader. *)
+  let norm =
+    Norm.normalize ~fold:cfg.fold_math ~strip:cfg.ignore_ws ~rules:cfg.rules
+  in
   let cur = Array.of_list current and ref_ = Array.of_list reference in
   let n_cur = Array.length cur and n_ref = Array.length ref_ in
   let n = max n_cur n_ref in
   let changed = ref [] in
   for i = 0 to n - 1 do
-    let r = if i < n_ref then Some ref_.(i) else None in
-    let c = if i < n_cur then Some cur.(i) else None in
+    let r = if i < n_ref then Some (norm ref_.(i)) else None in
+    let c = if i < n_cur then Some (norm cur.(i)) else None in
     if r <> c then changed := (i + 1) :: !changed
   done;
   let changed = List.rev !changed in
@@ -338,11 +394,11 @@ let report cfg ~reference ~current =
     (fun page ->
       let i = page - 1 in
       if i < n_ref && i < n_cur then (
-        match first_diff_line ref_.(i) cur.(i) with
-        | Some (ln, old_l, new_l) ->
+        match first_diff_line (norm ref_.(i)) (norm cur.(i)) with
+        | Some (ln, _, _) ->
             Printf.printf "Page %d changed (line %d):\n" page ln;
-            Printf.printf "  was: %s\n" (truncate_line old_l);
-            Printf.printf "  now: %s\n" (truncate_line new_l)
+            Printf.printf "  was: %s\n" (truncate_line (nth_line ref_.(i) ln));
+            Printf.printf "  now: %s\n" (truncate_line (nth_line cur.(i) ln))
         | None -> ())
       else if i >= n_ref then Printf.printf "Page %d added\n" page
       else Printf.printf "Page %d removed\n" page)

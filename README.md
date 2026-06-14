@@ -43,6 +43,15 @@ PATH`, the nearest ancestor directory containing `plint.toml`, or a single
 | `watch-exclude` | string[] | `[]` | directory basenames skipped while walking |
 | `critical-pages` | int[] | `[]` | pages whose change is reported as a hard error |
 | `git-base` | string | none | default base commit/ref for `--git-check` |
+| `fold-math` | bool | `false` | fold math-alphanumeric Unicode (italic, bold, etc.) to base letters before comparing |
+| `ignore-whitespace` | bool | `false` | drop spaces and tabs before comparing (newlines kept) |
+| `normalize` | string[] | `[]` | literal `from => to` substitutions applied to both sides before comparing |
+
+These three normalizations run, in order, on the reference and the current page
+text alike, so below-threshold typographic differences (math italic vs upright,
+operator spacing) do not register as page changes. The snapshot is never
+rewritten. Page-count and `critical-pages` checks still run on the normalized
+pages.
 
 ### Render command
 

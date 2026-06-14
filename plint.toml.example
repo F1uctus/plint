@@ -38,6 +38,25 @@ watch-exclude = []
 # shift must never happen). Optional; empty by default.
 critical-pages = []
 
+# Text normalization applied symmetrically to the reference and the current page
+# text before comparison, so below-threshold typographic differences do not
+# register as page changes. All three default off; the snapshot is not rewritten.
+#
+# fold-math: fold the Unicode Mathematical Alphanumeric Symbols (italic, bold,
+# script, fraktur, double-struck, sans-serif, monospace Latin and Greek letters
+# and digits, plus the Letterlike-Symbol holes such as the double-struck C) to
+# their base letter. Only the style of a base character is folded, so distinct
+# letters stay distinct; this makes math italic vs upright compare equal.
+# fold-math = false
+#
+# ignore-whitespace: drop every space and tab before comparing (newlines kept).
+# A space vs no space around an operator no longer registers as a change.
+# ignore-whitespace = false
+#
+# normalize: literal "from => to" substitutions applied to both sides, in order.
+# The split is on the first "=>", trimming one adjacent space on each side.
+# normalize = ["; [1, => , [1,"]
+
 # Default base commit/ref for --git-check (the commit the reference is built
 # from, e.g. the printed commit). Optional.
 # git-base = "v1.0"
